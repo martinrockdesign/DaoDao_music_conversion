@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>DaoDao Music Conversion </title>
+    <!-- Three.js 核心 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+    <!-- Vanta 点阵特效库 (DOTS) -->
+    <script src="https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.dots.min.js"></script>
+    <!-- FFmpeg 转换引擎 -->
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/ffmpeg.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: system-ui, -apple-system, 'Segoe UI', 'Inter', 'Helvetica Neue', sans-serif;
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            background: #1a0f2a; /* fallback */
+        }
+        /* Vanta 背景容器 */
+        #vanta-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+        }
+        /* 主内容区 */
+        .main-container {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 1.5rem;
+            pointer-events: none;
+        }
+        /* 卡片整体：半透明 20% 背景，透出背后粒子 */
+        .card {
+            pointer-events: auto;
+            width: 100%;
+            max-width: 560px;
+            background: rgba(12, 20, 30, 0.35);  /* 20% 透明度，透出动态背景 */
+            backdrop-filter: blur(4px);
+            border-radius: 42px;
+            padding: 1.2rem 1.6rem 1.6rem 1.6rem;
+            box-shadow: 0 12px 32px rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+        }
+
+        /* Logo + 品牌区域 (居中) */
+        .brand {
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+        .logo {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            width: 64px;
+            height: 64px;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            border-radius: 32px;
+            font-size: 2.8rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            margin-bottom: 0.6rem;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
+        .app-name {
+            font-size: 1.6rem;
+            font-weight: 800;
+            letter-spacing: -0.3px;
+            background: linear-gradient(135deg, #ffffff, #e0c3ff);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.2);
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        }
+        .app-sub {
+            font-size: 0.65rem;
+            color: #ddd9ff;
+            margin-top: 4px;
+            opacity: 0.9;
+        }
+
+        /* 上传区域 – 不透明 (确保可读性和操作感) */
+        .drop-zone {
+            background: rgba(20, 28, 40, 0.95);
+            border: 2px dashed rgba(255, 220, 150, 0.7);
+            border-radius: 28px;
+            padding: 1.6rem 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+            margin-bottom: 1rem;
+            backdrop-filter: blur(0px);
+        }
+        .drop-zone:hover {
+            background: rgba(40, 50, 70, 0.98);
+            border-color: #ffbb77;
+        }
+        .drop-zone.drag-over {
+            background: rgba(100, 80, 160, 0.9);
+            border-color: #ffffff;
+        }
+        .upload-icon {
+            font-size: 2.2rem;
+            opacity: 0.9;
+        }
+        .upload-text {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #f5f0ff;
+            margin-top: 6px;
+        }
+        .upload-hint {
+            font-size: 0.7rem;
+            color: #cbcbff;
+            margin-top: 5px;
+        }
+        .hidden-input {
+            display: none;
+        }
+
+        /* 文件列表 – 半透明但文字清晰 */
+        .files-list {
+            max-height: 200px;
+            overflow-y: auto;
+            margin-bottom: 1rem;
+            background: rgba(0, 0, 0, 0.45);
+            border-radius: 24px;
+            padding: 0.3rem;
+        }
+        .file-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(255,255,255,0.1);
+            margin: 0.4rem 0;
+            padding: 0.5rem 0.8rem;
+            border-radius: 40px;
+            font-size: 0.8rem;
+            color: #ffffff;
+        }
+        .file-name {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+        }
+        .file-size {
+            font-size: 0.65rem;
+            color: #ddddff;
+            margin-left: 0.6rem;
+        }
+        .remove-btn {
+            background: none;
+            border: none;
+            color: #ffbb99;
+            cursor: pointer;
+            font-size: 1.1rem;
+            margin-left: 0.6rem;
+            opacity: 0.8;
+        }
+        .remove-btn:hover {
+            opacity: 1;
+        }
+
+        /* 转换按钮 – 完全不透明，醒目 */
+        .convert-btn {
+            width: 100%;
+            background: #5a3d8c;
+            border: none;
+            padding: 0.85rem;
+            border-radius: 44px;
+            font-size: 1rem;
+            font-weight: 700;
+            color: white;
+            cursor: pointer;
+            transition: 0.2s;
+            margin: 0.2rem 0 0.8rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .convert-btn:disabled {
+            background: #5e6e8a;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .convert-btn:active:not(:disabled) {
+            transform: scale(0.97);
+        }
+
+        /* 进度条 (半透但可见) */
+        .progress-area {
+            margin: 0.5rem 0;
+        }
+        .progress-bar-bg {
+            background: rgba(45, 62, 85, 0.7);
+            border-radius: 30px;
+            height: 5px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            width: 0%;
+            height: 100%;
+            background: #c28aff;
+            transition: width 0.2s;
+        }
+
+        /* 底部状态 – 半透明衬底 */
+        .footer-status {
+            margin-top: 1rem;
+            font-size: 0.7rem;
+            text-align: center;
+            color: #eef2ff;
+            border-top: 1px solid rgba(255,255,255,0.2);
+            padding-top: 0.8rem;
+            background: rgba(0,0,0,0.25);
+            border-radius: 30px;
+        }
+        .status-msg {
+            font-weight: 500;
+        }
+        .error-msg {
+            color: #ffbcac;
+        }
+
+        /* 下载区域 – 不透明按钮风格 */
+        .result-area {
+            margin-top: 0.8rem;
+        }
+        .download-link {
+            display: inline-block;
+            background: #2a3a5e;
+            padding: 0.35rem 1rem;
+            border-radius: 40px;
+            font-size: 0.7rem;
+            color: white;
+            text-decoration: none;
+            margin-right: 0.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        .files-list::-webkit-scrollbar {
+            width: 3px;
+        }
+        .files-list::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .files-list::-webkit-scrollbar-thumb {
+            background: #a27eff;
+            border-radius: 6px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="vanta-bg"></div>
+
+<div class="main-container">
+    <div class="card">
+        <!-- Logo + 软件名称区域 (居中) -->
+        <div class="brand">
+            <div class="logo">🎵</div>
+            <div class="app-name">DaoDao Music Conversion</div>
+            <div class="app-sub">OGG · KGM · NCM to MP3</div>
+        </div>
+
+        <!-- 上传区域 -->
+        <div id="dropZone" class="drop-zone">
+            <div class="upload-icon">📂 ✨</div>
+            <div class="upload-text">点击或拖拽文件</div>
+            <div class="upload-hint">支持 .ogg / .kgm / .ncm (单个 ≤80MB)</div>
+            <input type="file" id="fileInput" multiple accept=".ogg,.kgm,.ncm" class="hidden-input" />
+        </div>
+
+        <!-- 文件列表 -->
+        <div id="fileListContainer" class="files-list" style="display: none;"></div>
+
+        <!-- 转换按钮 -->
+        <button id="convertBtn" class="convert-btn" disabled>✨ 转换为高品质 MP3</button>
+
+        <!-- 进度条 -->
+        <div id="progressWrapper" style="display: none;">
+            <div class="progress-bar-bg"><div id="progressFill" class="progress-fill"></div></div>
+        </div>
+
+        <!-- 下载结果 -->
+        <div id="resultArea" class="result-area" style="display: none;"></div>
+
+        <!-- 底部状态 -->
+        <div id="bottomStatus" class="footer-status">
+            <span id="statusText" class="status-msg">就绪 · 动态粒子背景</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function(){
+        // ---------- 1. 初始化 Vanta 点阵背景 (动态变色，鼠标镜头偏移) ----------
+        let vantaEffect = null;
+        
+        // 动态颜色方案: 每隔 2.2 秒变换一次主色与辅色，产生流动感
+        const colorSchemes = [
+            { color: 0xc2ff, color2: 0xffc3 },   // 青 + 暖粉
+            { color: 0x7ef5, color2: 0xf5a7 },   // 薄荷 + 珊瑚
+            { color: 0xd9a7, color2: 0x7cd2 },   // 淡紫 + 天蓝
+            { color: 0x8efc, color2: 0xfa6e },   // 亮青 + 橙红
+            { color: 0xb3a0, color2: 0xe0c2 },   //  lavender + 淡杏
+            { color: 0x6ab0, color2: 0xee88 }     // 深蓝 + 樱粉
+        ];
+        let colorIndex = 0;
+        
+        function initVanta() {
+            if (vantaEffect) vantaEffect.destroy();
+            try {
+                vantaEffect = VANTA.DOTS({
+                    el: "#vanta-bg",
+                    mouseControls: true,      // 鼠标控制产生视差偏移 (镜头感)
+                    touchControls: true,
+                    gyroControls: false,
+                    minHeight: 200.00,
+                    minWidth: 200.00,
+                    scale: 1.00,
+                    scaleMobile: 1.00,
+                    color: colorSchemes[0].color,
+                    color2: colorSchemes[0].color2,
+                    backgroundColor: 0x80231   // 深紫红基底
+                });
+                console.log("Vanta 点阵已启动，动态变色开启");
+                
+                // 动态改变颜色 (定时器)
+                setInterval(() => {
+                    if (vantaEffect && vantaEffect.setOptions) {
+                        colorIndex = (colorIndex + 1) % colorSchemes.length;
+                        const next = colorSchemes[colorIndex];
+                        vantaEffect.setOptions({
+                            color: next.color,
+                            color2: next.color2
+                        });
+                        // 轻量日志
+                        console.log(`粒子颜色切换至: ${next.color.toString(16)} / ${next.color2.toString(16)}`);
+                    }
+                }, 2200);
+            } catch(e) {
+                console.warn("Vanta 点阵初始化失败，使用渐变背景", e);
+                const bgDiv = document.getElementById('vanta-bg');
+                if(bgDiv) {
+                    bgDiv.style.background = "linear-gradient(145deg, #1a0f2a, #2a1a3a)";
+                }
+            }
+        }
+        
+        // 等待页面完全加载后初始化，确保容器尺寸正确
+        window.addEventListener('load', () => {
+            initVanta();
+            window.addEventListener('resize', () => {
+                if(vantaEffect) vantaEffect.resize();
+            });
+        });
+
+        // ---------- 2. 音频转换核心 (支持 OGG / KGM / NCM) ----------
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const fileListContainer = document.getElementById('fileListContainer');
+        const convertBtn = document.getElementById('convertBtn');
+        const progressWrapper = document.getElementById('progressWrapper');
+        const progressFill = document.getElementById('progressFill');
+        const resultArea = document.getElementById('resultArea');
+        const statusSpan = document.getElementById('statusText');
+
+        let pendingFiles = [];
+        let ffmpeg = null;
+        let ffmpegReady = false;
+
+        function formatSize(bytes) {
+            if(bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/[&<>]/g, function(m) {
+                if(m === '&') return '&amp;';
+                if(m === '<') return '&lt;';
+                if(m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        function renderFileList() {
+            if(pendingFiles.length === 0) {
+                fileListContainer.style.display = 'none';
+                convertBtn.disabled = true;
+                return;
+            }
+            fileListContainer.style.display = 'block';
+            let html = '';
+            pendingFiles.forEach((file, idx) => {
+                const ext = file.name.split('.').pop().toUpperCase();
+                html += `
+                    <div class="file-item">
+                        <span class="file-name" title="${escapeHtml(file.name)}">${escapeHtml(file.name)}</span>
+                        <span class="file-size">${formatSize(file.size)} · ${ext}</span>
+                        <button class="remove-btn" data-index="${idx}">✕</button>
+                    </div>
+                `;
+            });
+            fileListContainer.innerHTML = html;
+            document.querySelectorAll('.remove-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const idx = parseInt(btn.getAttribute('data-index'));
+                    if(!isNaN(idx)) {
+                        pendingFiles.splice(idx, 1);
+                        renderFileList();
+                        if(pendingFiles.length === 0) {
+                            resultArea.style.display = 'none';
+                            resultArea.innerHTML = '';
+                        }
+                        setStatusText('文件已移除', false);
+                    }
+                });
+            });
+            convertBtn.disabled = false;
+        }
+
+        function addFiles(files) {
+            let added = 0;
+            for(let f of files) {
+                const ext = f.name.split('.').pop().toLowerCase();
+                if(!['ogg','kgm','ncm'].includes(ext)) {
+                    setStatusText(`跳过: ${f.name} (不支持格式)`, true);
+                    continue;
+                }
+                if(f.size > 80 * 1024 * 1024) {
+                    setStatusText(`跳过: ${f.name} 超过80MB`, true);
+                    continue;
+                }
+                if(!pendingFiles.some(ex => ex.name === f.name && ex.size === f.size)) {
+                    pendingFiles.push(f);
+                    added++;
+                }
+            }
+            if(added) {
+                renderFileList();
+                resultArea.style.display = 'none';
+                resultArea.innerHTML = '';
+                setStatusText(`已添加 ${added} 个文件`, false);
+            } else if(files.length > 0) {
+                setStatusText('未添加新文件 (重复或无效)', true);
+            }
+        }
+
+        function setStatusText(msg, isError = false) {
+            statusSpan.innerHTML = isError ? `<span class="error-msg">⚠️ ${escapeHtml(msg)}</span>` : escapeHtml(msg);
+            if(isError) {
+                setTimeout(() => {
+                    if(statusSpan.innerText.includes(msg)) {
+                        if(!ffmpegReady) statusSpan.innerText = '引擎未加载，请稍后重试';
+                        else statusSpan.innerText = '就绪 · 动态粒子背景';
+                    }
+                }, 4000);
+            }
+        }
+
+        async function initFFmpeg() {
+            if(ffmpegReady && ffmpeg) return ffmpeg;
+            if(window._ffLoading) {
+                while(!ffmpegReady && window._ffLoading) await new Promise(r => setTimeout(r, 150));
+                return ffmpeg;
+            }
+            window._ffLoading = true;
+            progressWrapper.style.display = 'block';
+            setStatusText('⚙️ 加载转换引擎 (首次约12MB)...', false);
+            try {
+                if(typeof FFmpeg === 'undefined') throw new Error('FFmpeg库加载失败');
+                ffmpeg = new FFmpeg();
+                const coreOptions = [
+                    { coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js', wasmURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/ffmpeg-core.wasm' },
+                    { coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js', wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/ffmpeg-core.wasm' }
+                ];
+                let lastErr = null;
+                for(const opt of coreOptions) {
+                    try {
+                        await ffmpeg.load(opt);
+                        ffmpegReady = true;
+                        setStatusText('✅ 引擎就绪', false);
+                        progressWrapper.style.display = 'none';
+                        window._ffLoading = false;
+                        return ffmpeg;
+                    } catch(e) { lastErr = e; }
+                }
+                throw lastErr || new Error('引擎加载失败，请检查网络或使用HTTP服务');
+            } catch(err) {
+                console.error(err);
+                setStatusText('引擎加载失败: ' + err.message, true);
+                progressWrapper.style.display = 'none';
+                window._ffLoading = false;
+                if(window.location.protocol === 'file:') {
+                    setStatusText('请使用本地 HTTP 服务器运行 (python -m http.server)', true);
+                }
+                throw err;
+            }
+        }
+
+        // ---------- 解密模块 (NCM / KGM) ----------
+        async function ensureCryptoJS() {
+            if(window.CryptoJS) return;
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = "https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js";
+                script.onload = resolve;
+                script.onerror = () => reject(new Error('CryptoJS加载失败，无法解密NCM'));
+                document.head.appendChild(script);
+            });
+        }
+
+        function rc4Crypt(data, keyBytes) {
+            let s = [...Array(256).keys()];
+            let j = 0;
+            for(let i=0;i<256;i++) {
+                j = (j + s[i] + keyBytes[i % keyBytes.length]) & 0xff;
+                [s[i], s[j]] = [s[j], s[i]];
+            }
+            let i=0, j2=0;
+            const res = new Uint8Array(data.length);
+            for(let idx=0; idx<data.length; idx++) {
+                i = (i+1) & 0xff;
+                j2 = (j2 + s[i]) & 0xff;
+                [s[i], s[j2]] = [s[j2], s[i]];
+                const k = s[(s[i] + s[j2]) & 0xff];
+                res[idx] = data[idx] ^ k;
+            }
+            return res;
+        }
+
+        async function decryptNCM(buffer) {
+            await ensureCryptoJS();
+            const view = new DataView(buffer);
+            let magic = '';
+            for(let i=0;i<8;i++) magic += String.fromCharCode(view.getUint8(i));
+            if(magic !== 'CTENCDNT') throw new Error('NCM头无效');
+            let offset = 10;
+            const metaSize = view.getUint32(offset, true); offset+=4;
+            const encMeta = new Uint8Array(buffer, offset, metaSize); offset+=metaSize;
+            offset+=4;
+            const imgSize = view.getUint32(offset, true); offset+=4;
+            if(imgSize>0) offset+=imgSize;
+            const encAudio = new Uint8Array(buffer, offset);
+            const aesKey = CryptoJS.enc.Utf8.parse('neteasecloudmusic09');
+            const encBase64 = CryptoJS.enc.Base64.stringify(CryptoJS.lib.WordArray.create(encMeta));
+            let decMeta;
+            try {
+                const dec = CryptoJS.AES.decrypt(encBase64, aesKey, { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 });
+                decMeta = dec.toString(CryptoJS.enc.Utf8);
+            } catch(e) { throw new Error('元数据解密失败'); }
+            const metaJson = JSON.parse(decMeta);
+            const keyData = metaJson.key;
+            if(!keyData) throw new Error('无解密密钥');
+            const rc4Raw = CryptoJS.enc.Base64.parse(keyData);
+            const keyBytes = new Uint8Array(rc4Raw.words.length * 4);
+            for(let i=0;i<rc4Raw.words.length;i++) {
+                const w = rc4Raw.words[i];
+                keyBytes[i*4] = (w>>>24)&0xff;
+                keyBytes[i*4+1] = (w>>>16)&0xff;
+                keyBytes[i*4+2] = (w>>>8)&0xff;
+                keyBytes[i*4+3] = w&0xff;
+            }
+            let decAudio = rc4Crypt(encAudio, keyBytes);
+            for(let i=0; i<Math.min(64, decAudio.length-4); i++) {
+                if((decAudio[i]===0x49 && decAudio[i+1]===0x44 && decAudio[i+2]===0x33) ||
+                   (decAudio[i]===0x4F && decAudio[i+1]===0x67) ||
+                   (decAudio[i]===0x66 && decAudio[i+1]===0x4C)) {
+                    return decAudio.slice(i).buffer;
+                }
+            }
+            return decAudio.buffer;
+        }
+
+        async function decryptKGM(buffer) {
+            const data = new Uint8Array(buffer);
+            const tryMask = (mask) => {
+                const out = new Uint8Array(data.length);
+                for(let i=0;i<data.length;i++) out[i]=data[i]^mask;
+                return out;
+            };
+            let dec = tryMask(0x7d);
+            if((dec[0]===0x4F && dec[1]===0x67) || (dec[0]===0x49 && dec[1]===0x44)) return dec.buffer;
+            dec = tryMask(0x7c);
+            if((dec[0]===0x4F && dec[1]===0x67) || (dec[0]===0x49 && dec[1]===0x44)) return dec.buffer;
+            return tryMask(0x7d).buffer;
+        }
+
+        async function convertOne(file, ff, progressCb) {
+            const ext = file.name.split('.').pop().toLowerCase();
+            let rawBuffer;
+            const baseName = file.name.replace(/\.(ogg|kgm|ncm)$/i,'');
+            const fileBuf = await file.arrayBuffer();
+            if(ext === 'ogg') rawBuffer = fileBuf;
+            else if(ext === 'ncm') rawBuffer = await decryptNCM(fileBuf);
+            else rawBuffer = await decryptKGM(fileBuf);
+            progressCb(0.3);
+            const inFile = `in_${Date.now()}_${Math.random()}.bin`;
+            const outFile = `${baseName}.mp3`;
+            await ff.writeFile(inFile, new Uint8Array(rawBuffer));
+            await ff.exec(['-i', inFile, '-acodec', 'libmp3lame', '-ab', '192k', '-ar', '44100', '-y', outFile]);
+            progressCb(0.85);
+            const outData = await ff.readFile(outFile);
+            await ff.deleteFile(inFile);
+            await ff.deleteFile(outFile);
+            return { blob: new Blob([outData], { type: 'audio/mpeg' }), filename: outFile };
+        }
+
+        async function startConversion() {
+            if(pendingFiles.length === 0) return;
+            if(!ffmpegReady) {
+                progressWrapper.style.display = 'block';
+                setStatusText('初始化引擎...', false);
+                try {
+                    await initFFmpeg();
+                } catch(e) {
+                    setStatusText(`引擎错误: ${e.message}`, true);
+                    progressWrapper.style.display = 'none';
+                    return;
+                }
+            }
+            convertBtn.disabled = true;
+            progressWrapper.style.display = 'block';
+            resultArea.style.display = 'none';
+            resultArea.innerHTML = '';
+            const total = pendingFiles.length;
+            let successList = [];
+
+            for(let i=0; i<total; i++) {
+                const file = pendingFiles[i];
+                setStatusText(`转换中 (${i+1}/${total}): ${file.name}`, false);
+                progressFill.style.width = `${(i/total)*100}%`;
+                try {
+                    const res = await convertOne(file, ffmpeg, (p) => {
+                        const percent = ((i + p) / total) * 100;
+                        progressFill.style.width = `${Math.min(percent, 99)}%`;
+                    });
+                    successList.push(res);
+                    progressFill.style.width = `${((i+1)/total)*100}%`;
+                } catch(err) {
+                    console.error(err);
+                    setStatusText(`失败: ${file.name} - ${err.message}`, true);
+                    await new Promise(r => setTimeout(r, 300));
+                }
+            }
+            progressFill.style.width = '100%';
+            if(successList.length) {
+                setStatusText(`✅ 转换完成! 成功 ${successList.length}/${total}`, false);
+                resultArea.style.display = 'block';
+                let html = '';
+                for(const r of successList) {
+                    const url = URL.createObjectURL(r.blob);
+                    html += `<a class="download-link" href="${url}" download="${escapeHtml(r.filename)}">🎵 ${escapeHtml(r.filename)}</a>`;
+                }
+                resultArea.innerHTML = html;
+            } else {
+                setStatusText(`❌ 全部转换失败，请检查文件是否损坏`, true);
+            }
+            convertBtn.disabled = false;
+        }
+
+        // 事件绑定
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files);
+            if(files.length) addFiles(files);
+        });
+        fileInput.addEventListener('change', (e) => {
+            if(e.target.files.length) addFiles(Array.from(e.target.files));
+            fileInput.value = '';
+        });
+        convertBtn.addEventListener('click', startConversion);
+
+        // 预加载引擎
+        window.addEventListener('load', () => {
+            if(window.location.protocol !== 'file:') {
+                setTimeout(() => initFFmpeg().catch(e => console.warn("预加载提示", e)), 500);
+            } else {
+                setStatusText('⚠️ 请通过 http:// 访问本页面 (本地服务器)', true);
+            }
+        });
+    })();
+</script>
+</body>
+</html>
