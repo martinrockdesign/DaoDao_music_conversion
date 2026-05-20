@@ -6,7 +6,7 @@
     <title>DaoDao 音频转换矩阵</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.dots.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/ffmpeg.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js"></script>
     <style>
         :root {
             --bg-color: #060913;
@@ -33,7 +33,6 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* 背景容器 */
         #vanta-bg {
             position: fixed;
             top: 0;
@@ -43,7 +42,6 @@
             z-index: 0;
         }
 
-        /* 磨砂玻璃主体容器 */
         .main-container {
             position: relative;
             z-index: 10;
@@ -69,7 +67,6 @@
             transition: all 0.4s ease;
         }
 
-        /* 头部设计 */
         .brand {
             text-align: center;
             margin-bottom: 2rem;
@@ -92,7 +89,6 @@
             color: var(--text-muted);
         }
 
-        /* 极简拖拽区 */
         .drop-zone {
             background: rgba(255, 255, 255, 0.02);
             border: 1px dashed rgba(255, 255, 255, 0.15);
@@ -132,7 +128,6 @@
             display: none;
         }
 
-        /* 队列列表 */
         .files-list {
             max-height: 160px;
             overflow-y: auto;
@@ -179,7 +174,6 @@
         }
         .remove-btn:hover { opacity: 1; }
 
-        /* 科技感主按钮 */
         .convert-btn {
             width: 100%;
             background: var(--accent-glow);
@@ -207,7 +201,6 @@
             cursor: not-allowed;
         }
 
-        /* 极细进度条 */
         .progress-area {
             margin: 1.2rem 0;
         }
@@ -224,7 +217,6 @@
             transition: width 0.2s ease;
         }
 
-        /* 下载结果卡片区 */
         .result-area {
             margin-top: 1.2rem;
             display: grid;
@@ -249,7 +241,6 @@
             border-color: #00f2fe;
         }
 
-        /* 底部状态轻量化 */
         .footer-status {
             margin-top: 1.5rem;
             font-size: 0.75rem;
@@ -259,7 +250,6 @@
         }
         .error-msg { color: #f87171; }
 
-        /* 滚动条美化 */
         .files-list::-webkit-scrollbar { width: 4px; }
         .files-list::-webkit-scrollbar-track { background: transparent; }
         .files-list::-webkit-scrollbar-thumb {
@@ -296,22 +286,20 @@
         <div id="resultArea" class="result-area" style="display: none;"></div>
 
         <div id="bottomStatus" class="footer-status">
-            <span id="statusText">内核就绪 · 动态安全加密链接已建立</span>
+            <span id="statusText">内核就绪 · 动态安全配置就绪</span>
         </div>
     </div>
 </div>
 
 <script>
     (function(){
-        // ---------- 1. 深度科技黑背景 + 随机炫彩粒子控制 ----------
+        // ---------- 1. 深度科技黑背景 + 随机粒子变色 ----------
         let vantaEffect = null;
-        
-        // 科技质感高级色彩库（只改变粒子颜色，保持背景纯黑蓝）
         const techColors = [
-            { c1: 0x00f2fe, c2: 0x4facfe }, // 电光青蓝
-            { c1: 0x7f00ff, c2: 0xff007f }, // 幻境霓虹
-            { c1: 0x00ff87, c2: 0x60efff }, // 极光极客
-            { c1: 0xf43f5e, c2: 0xfca5a5 }  // 赤红微光
+            { c1: 0x00f2fe, c2: 0x4facfe }, 
+            { c1: 0x7f00ff, c2: 0xff007f }, 
+            { c1: 0x00ff87, c2: 0x60efff }, 
+            { c1: 0xf43f5e, c2: 0xfca5a5 }
         ];
 
         function initVanta() {
@@ -327,12 +315,11 @@
                     scaleMobile: 1.00,
                     color: techColors[0].c1,
                     color2: techColors[0].c2,
-                    backgroundColor: 0x060913, // 绝对固定深蓝黑科技底色
+                    backgroundColor: 0x060913, // 固定的蓝黑科技底色
                     size: 2.50,
                     spacing: 35.00
                 });
                 
-                // 每隔4秒平滑平移至下一组随机粒子颜色
                 setInterval(() => {
                     if (vantaEffect && vantaEffect.setOptions) {
                         const randomPair = techColors[Math.floor(Math.random() * techColors.length)];
@@ -343,7 +330,6 @@
                     }
                 }, 4000);
             } catch(e) {
-                console.warn("Vanta 加载资产异常，切换至静态安全底色");
                 document.getElementById('vanta-bg').style.background = "#060913";
             }
         }
@@ -353,7 +339,7 @@
             window.addEventListener('resize', () => { if(vantaEffect) vantaEffect.resize(); });
         });
 
-        // ---------- 2. 在线转换解密逻辑架构 ----------
+        // ---------- 2. 在线转换核心安全逻辑 ----------
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const fileListContainer = document.getElementById('fileListContainer');
@@ -429,10 +415,9 @@
         }
 
         function setStatusText(msg, isError = false) {
-            statusSpan.innerHTML = isError ? `<span class="error-msg">矩阵异常: ${msg}</span>` : msg;
+            statusSpan.innerHTML = isError ? `<span class="error-msg">${msg}</span>` : msg;
         }
 
-        // WebAssembly 初始化
         async function initFFmpeg() {
             if(ffmpegReady && ffmpeg) return ffmpeg;
             if(window._ffLoading) {
@@ -441,14 +426,21 @@
             }
             window._ffLoading = true;
             progressWrapper.style.display = 'block';
-            setStatusText('正在下发底层转换网络组件...');
+            setStatusText('正在加载 WebAssembly 核心解码组件...');
+            
             try {
+                // 核心解构修正：UMD 构建引入时全局对象是 FFmpegWASM
+                if (typeof FFmpegWASM === 'undefined') {
+                    throw new Error('CDN 加载失败，请检查您的网络连接或稍后再试');
+                }
+                const { FFmpeg } = FFmpegWASM;
                 ffmpeg = new FFmpeg();
-                // 默认使用公共快速稳定源分配
+                
                 await ffmpeg.load({
-                    coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/ffmpeg-core.js',
-                    wasmURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/ffmpeg-core.wasm'
+                    coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+                    wasmURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'
                 });
+                
                 ffmpegReady = true;
                 progressWrapper.style.display = 'none';
                 window._ffLoading = false;
@@ -460,19 +452,17 @@
             }
         }
 
-        // 依赖环境按需引入
         async function ensureCryptoJS() {
             if(window.CryptoJS) return;
             return new Promise((resolve, reject) => {
                 const script = document.createElement('script');
                 script.src = "https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js";
                 script.onload = resolve;
-                script.onerror = () => reject(new Error('密钥库流失，无法解算密文'));
+                script.onerror = () => reject(new Error('密钥算法缺失'));
                 document.head.appendChild(script);
             });
         }
 
-        // 解密处理算法
         function rc4Crypt(data, keyBytes) {
             let s = [...Array(256).keys()];
             let j = 0;
@@ -496,16 +486,14 @@
             const view = new DataView(buffer);
             let magic = '';
             for(let i=0;i<8;i++) magic += String.fromCharCode(view.getUint8(i));
-            if(magic !== 'CTENCDNT') throw new Error('非合法容器包');
+            if(magic !== 'CTENCDNT') throw new Error('非合法NCM格式');
             let offset = 10;
             const metaSize = view.getUint32(offset, true); offset+=metaSize + 4;
             offset+=4;
             const imgSize = view.getUint32(offset, true); offset+=4;
             if(imgSize>0) offset+=imgSize;
             const encAudio = new Uint8Array(buffer, offset);
-            const aesKey = CryptoJS.enc.Utf8.parse('neteasecloudmusic09');
             
-            // 此处直接提取基础流进行标准RC4逆推逻辑
             const keyBytes = new Uint8Array([102, 111, 114, 109, 97, 116]); 
             let decAudio = rc4Crypt(encAudio, keyBytes);
             
@@ -522,7 +510,6 @@
         async function decryptKGM(buffer) {
             const data = new Uint8Array(buffer);
             const out = new Uint8Array(data.length);
-            // 经典高斯掩码异或层级解算
             for(let i=0;i<data.length;i++) out[i] = data[i] ^ 0x7d;
             if((out[0]===0x4F && out[1]===0x67) || (out[0]===0x49 && out[1]===0x44)) return out.buffer;
             for(let i=0;i<data.length;i++) out[i] = data[i] ^ 0x7c;
@@ -544,7 +531,6 @@
             const outFile = `${baseName}.mp3`;
             
             await ff.writeFile(inFile, new Uint8Array(rawBuffer));
-            // 提升音频码率参数至标准的 320k 极致听感输出
             await ff.exec(['-i', inFile, '-acodec', 'libmp3lame', '-ab', '320k', '-ar', '44100', '-y', outFile]);
             progressCb(0.85);
             
@@ -556,10 +542,17 @@
 
         async function startConversion() {
             if(pendingFiles.length === 0) return;
+            
+            // 原生安全审计：先检测 vercel.json 的跨源隔离头是否真的生效了
+            if (!window.crossOriginIsolated) {
+                setStatusText('⚠️ 跨源隔离配置未生效：请确认为 vercel.json 部署，并使用 Ctrl+F5 强制刷新清除浏览器缓存。', true);
+                return;
+            }
+
             try {
                 await initFFmpeg();
             } catch(e) {
-                setStatusText('安全上下文拦截，请确认在 HTTP/HTTPS 环境下运行本矩阵', true);
+                setStatusText(`❌ 引擎组件故障: ${e.message || e}`, true);
                 return;
             }
             
@@ -589,7 +582,7 @@
             setTimeout(() => { progressWrapper.style.display = 'none'; }, 500);
 
             if(successList.length) {
-                setStatusText(`矩阵转换完成 · 成功率 ${successList.length}/${total}`);
+                setStatusText(`矩阵转换完成 · 成功重组 ${successList.length} 项资产`);
                 resultArea.style.display = 'grid';
                 for(const r of successList) {
                     const url = URL.createObjectURL(r.blob);
@@ -602,12 +595,12 @@
                 }
                 pendingFiles = [];
             } else {
-                setStatusText('数据流解密冲突，请核对音频密钥分发版本', true);
+                setStatusText('数据流重组冲突，解析无有效输出', true);
             }
             convertBtn.disabled = false;
         }
 
-        // 交互流绑定
+        // 交互绑定
         dropZone.addEventListener('click', () => fileInput.click());
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
