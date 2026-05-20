@@ -6,11 +6,10 @@
     <title>DaoDao 音频转换矩阵</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.dots.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
         :root {
             --bg-color: #060913;
-            --card-bg: rgba(10, 15, 30, 0.45);
             --border-light: rgba(255, 255, 255, 0.08);
             --accent-glow: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
             --text-main: #f1f5f9;
@@ -53,16 +52,17 @@
             pointer-events: none;
         }
 
+        /* 核心调整：透明度降至70%，微调毛玻璃效果让背景粒子纹理清晰透出 */
         .card {
             pointer-events: auto;
             width: 100%;
             max-width: 480px;
-            background: var(--card-bg);
-            backdrop-filter: blur(24px);
-            -webkit-backdrop-filter: blur(24px);
+            background: rgba(10, 15, 30, 0.70); 
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border-radius: 24px;
             padding: 2.5rem 2rem;
-            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.1);
             border: 1px solid var(--border-light);
             transition: all 0.4s ease;
         }
@@ -90,7 +90,7 @@
         }
 
         .drop-zone {
-            background: rgba(255, 255, 255, 0.02);
+            background: rgba(255, 255, 255, 0.01);
             border: 1px dashed rgba(255, 255, 255, 0.15);
             border-radius: 16px;
             padding: 2.5rem 1rem;
@@ -101,7 +101,7 @@
         }
 
         .drop-zone:hover {
-            background: rgba(255, 255, 255, 0.04);
+            background: rgba(255, 255, 255, 0.03);
             border-color: #00f2fe;
             box-shadow: 0 0 15px rgba(0, 242, 254, 0.15);
         }
@@ -286,14 +286,14 @@
         <div id="resultArea" class="result-area" style="display: none;"></div>
 
         <div id="bottomStatus" class="footer-status">
-            <span id="statusText">内核就绪 · 动态安全配置就绪</span>
+            <span id="statusText">内核就绪 · 动态安全隔离保护中</span>
         </div>
     </div>
 </div>
 
 <script>
     (function(){
-        // ---------- 1. 深度科技黑背景 + 随机粒子变色 ----------
+        // ---------- 1. 科技黑基底 + 随机流光粒子效果 ----------
         let vantaEffect = null;
         const techColors = [
             { c1: 0x00f2fe, c2: 0x4facfe }, 
@@ -315,7 +315,7 @@
                     scaleMobile: 1.00,
                     color: techColors[0].c1,
                     color2: techColors[0].c2,
-                    backgroundColor: 0x060913, // 固定的蓝黑科技底色
+                    backgroundColor: 0x060913, // 保持绝对深蓝黑深邃质感
                     size: 2.50,
                     spacing: 35.00
                 });
@@ -339,7 +339,7 @@
             window.addEventListener('resize', () => { if(vantaEffect) vantaEffect.resize(); });
         });
 
-        // ---------- 2. 在线转换核心安全逻辑 ----------
+        // ---------- 2. 在线音频重组转换流（采用单文件 0.11.x 内核） ----------
         const dropZone = document.getElementById('dropZone');
         const fileInput = document.getElementById('fileInput');
         const fileListContainer = document.getElementById('fileListContainer');
@@ -418,6 +418,7 @@
             statusSpan.innerHTML = isError ? `<span class="error-msg">${msg}</span>` : msg;
         }
 
+        // 初始化单文件版 WebAssembly
         async function initFFmpeg() {
             if(ffmpegReady && ffmpeg) return ffmpeg;
             if(window._ffLoading) {
@@ -426,21 +427,20 @@
             }
             window._ffLoading = true;
             progressWrapper.style.display = 'block';
-            setStatusText('正在加载 WebAssembly 核心解码组件...');
+            setStatusText('正在初始化解码内核矩阵...');
             
             try {
-                // 核心解构修正：UMD 构建引入时全局对象是 FFmpegWASM
-                if (typeof FFmpegWASM === 'undefined') {
-                    throw new Error('CDN 加载失败，请检查您的网络连接或稍后再试');
+                if (typeof FFmpeg === 'undefined') {
+                    throw new Error('CDN 静态网络资产分发异常，请刷新重试');
                 }
-                const { FFmpeg } = FFmpegWASM;
-                ffmpeg = new FFmpeg();
-                
-                await ffmpeg.load({
-                    coreURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
-                    wasmURL: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'
+                // 采用经典可靠的 0.11.x 单层全包结构
+                const { createFFmpeg } = FFmpeg;
+                ffmpeg = createFFmpeg({
+                    log: true,
+                    corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
                 });
                 
+                await ffmpeg.load();
                 ffmpegReady = true;
                 progressWrapper.style.display = 'none';
                 window._ffLoading = false;
@@ -458,7 +458,7 @@
                 const script = document.createElement('script');
                 script.src = "https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js";
                 script.onload = resolve;
-                script.onerror = () => reject(new Error('密钥算法缺失'));
+                script.onerror = () => reject(new Error('核心算法分发挂起'));
                 document.head.appendChild(script);
             });
         }
@@ -486,7 +486,7 @@
             const view = new DataView(buffer);
             let magic = '';
             for(let i=0;i<8;i++) magic += String.fromCharCode(view.getUint8(i));
-            if(magic !== 'CTENCDNT') throw new Error('非合法NCM格式');
+            if(magic !== 'CTENCDNT') throw new Error('非正常容器资产');
             let offset = 10;
             const metaSize = view.getUint32(offset, true); offset+=metaSize + 4;
             offset+=4;
@@ -530,22 +530,22 @@
             const inFile = `in_${Date.now()}.bin`;
             const outFile = `${baseName}.mp3`;
             
-            await ff.writeFile(inFile, new Uint8Array(rawBuffer));
-            await ff.exec(['-i', inFile, '-acodec', 'libmp3lame', '-ab', '320k', '-ar', '44100', '-y', outFile]);
+            // 完美对接 0.11.x 原生高稳定沙盒虚拟文件系统
+            ff.FS('writeFile', inFile, new Uint8Array(rawBuffer));
+            await ff.run('-i', inFile, '-acodec', 'libmp3lame', '-ab', '320k', '-ar', '44100', '-y', outFile);
             progressCb(0.85);
             
-            const outData = await ff.readFile(outFile);
-            await ff.deleteFile(inFile);
-            await ff.deleteFile(outFile);
+            const outData = ff.FS('readFile', outFile);
+            ff.FS('unlink', inFile);
+            ff.FS('unlink', outFile);
             return { blob: new Blob([outData], { type: 'audio/mpeg' }), filename: outFile };
         }
 
         async function startConversion() {
             if(pendingFiles.length === 0) return;
             
-            // 原生安全审计：先检测 vercel.json 的跨源隔离头是否真的生效了
             if (!window.crossOriginIsolated) {
-                setStatusText('⚠️ 跨源隔离配置未生效：请确认为 vercel.json 部署，并使用 Ctrl+F5 强制刷新清除浏览器缓存。', true);
+                setStatusText('⚠️ 跨源安全隔离未检测到激活。请确认项目根目录下留有 vercel.json 配置文件，并尝试通过 Ctrl+F5 强制刷新网页。', true);
                 return;
             }
 
@@ -566,7 +566,7 @@
 
             for(let i=0; i<total; i++) {
                 const file = pendingFiles[i];
-                setStatusText(`正在重组数据流 (${i+1}/${total}): ${file.name}`);
+                setStatusText(`重组音频链路 (${i+1}/${total}): ${file.name}`);
                 try {
                     const res = await convertOne(file, ffmpeg, (p) => {
                         const percent = ((i + p) / total) * 100;
@@ -582,7 +582,7 @@
             setTimeout(() => { progressWrapper.style.display = 'none'; }, 500);
 
             if(successList.length) {
-                setStatusText(`矩阵转换完成 · 成功重组 ${successList.length} 项资产`);
+                setStatusText(`矩阵转换完成 · 已重组 ${successList.length} 项音频资产`);
                 resultArea.style.display = 'grid';
                 for(const r of successList) {
                     const url = URL.createObjectURL(r.blob);
@@ -590,17 +590,17 @@
                     a.className = 'download-link';
                     a.href = url;
                     a.download = r.filename;
-                    a.innerHTML = `<span>${r.filename}</span><span style="font-size:0.7rem; font-weight:bold;">DOWNLOAD</span>`;
+                    a.innerHTML = `<span>${r.filename}</span><span style="font-size:0.7rem; font-weight:bold; letter-spacing:1px;">DOWNLOAD</span>`;
                     resultArea.appendChild(a);
                 }
                 pendingFiles = [];
             } else {
-                setStatusText('数据流重组冲突，解析无有效输出', true);
+                setStatusText('当前音频流密钥不匹配，无解密输出', true);
             }
             convertBtn.disabled = false;
         }
 
-        // 交互绑定
+        // 绑定节点交互
         dropZone.addEventListener('click', () => fileInput.click());
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
