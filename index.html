@@ -270,7 +270,8 @@
         const modal = document.getElementById('matrixModal');
 
         openBtn.addEventListener('click', () => {
-            modal.classList.add('active');
+            // 触发炫酷的点击反馈后，直接在新标签页开启目标终端
+            window.open('https://www.ncm2mp3.com/', '_blank');
         });
 
         closeModalBtn.addEventListener('click', () => {
