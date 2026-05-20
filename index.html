@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DaoDao ncm 转 mp3</title>
+    <title>DaoDao 极简音频矩阵</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.dots.min.js"></script>
     <style>
@@ -29,7 +29,6 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* 动态背景容器 */
         #vanta-bg {
             position: fixed;
             top: 0;
@@ -40,7 +39,6 @@
             pointer-events: none;
         }
 
-        /* 主舞台居中 */
         .main-container {
             position: relative;
             z-index: 10;
@@ -51,7 +49,7 @@
             width: 100vw;
         }
 
-        /* 核心发光圆形按钮 */
+        /* --- 核心圆形按钮 --- */
         .core-button {
             width: 240px;
             height: 240px;
@@ -99,7 +97,7 @@
             letter-spacing: 1px;
         }
 
-        /* --- 弹窗/模态框遮罩 --- */
+        /* --- 网关弹窗系统 --- */
         .modal-overlay {
             position: fixed;
             top: 0;
@@ -123,74 +121,78 @@
             pointer-events: auto;
         }
 
-        /* 弹窗容器 */
-        .modal-content {
+        .gateway-content {
             position: relative;
             width: 90%;
-            max-width: 1000px;
-            height: 80vh;
-            background: rgba(15, 23, 42, 0.9);
-            border-radius: 24px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
+            max-width: 480px;
+            background: rgba(15, 23, 42, 0.85);
+            border-radius: 20px;
+            border: 1px solid rgba(0, 242, 254, 0.3);
+            box-shadow: 0 25px 50px -12px rgba(0, 242, 254, 0.2), inset 0 0 20px rgba(0, 242, 254, 0.1);
             overflow: hidden;
             transform: translateY(30px) scale(0.95);
             transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-            display: flex;
-            flex-direction: column;
+            padding: 2.5rem 2rem;
+            text-align: center;
         }
 
-        .modal-overlay.active .modal-content {
+        .modal-overlay.active .gateway-content {
             transform: translateY(0) scale(1);
         }
 
-        /* 弹窗控制栏 */
-        .modal-header {
-            display: flex;
-            justify-content: flex-end;
-            align-items: center;
-            padding: 12px 20px;
-            background: rgba(0, 0, 0, 0.5);
-            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-            z-index: 10;
+        /* 终端加载动画UI */
+        .terminal-header {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #00f2fe;
+            letter-spacing: 2px;
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
         }
 
-        .close-btn {
-            background: none;
-            border: none;
+        .terminal-status {
+            font-size: 0.85rem;
             color: #94a3b8;
-            font-size: 1.8rem;
-            cursor: pointer;
-            line-height: 1;
-            transition: color 0.2s;
-        }
-        .close-btn:hover {
-            color: #ef4444;
+            margin-bottom: 1rem;
+            min-height: 20px;
+            font-family: monospace;
         }
 
-        /* ✂️ 核心新增：遮罩裁剪外壳 ✂️ */
-        .iframe-clipper {
-            flex: 1;
+        /* 赛博朋克进度条 */
+        .progress-track {
             width: 100%;
+            height: 4px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 2rem;
             position: relative;
-            overflow: hidden; /* 核心：强行裁剪掉容器外的多余网页内容 */
-            background: #ffffff; /* 防止下方原网页穿透变色 */
         }
 
-        /* 📡 核心修正：内嵌网页定位拉伸 📡 */
-        .embedded-frame {
-            position: absolute;
-            width: 100%;
-            border: none;
-            
-            /* -----------------------------------------------------------------
-               💡 极客调教指南：
-               1. top: -95px; 代表把外部网页往上提 95 像素（以此遮住它的顶部导航栏）。
-               2. height: calc(100% + 140px); 把高撑大，配合底部溢出裁剪，遮住底部。
-               如果发现遮挡不准，微调这两个数字即可！
-               ----------------------------------------------------------------- */
-            top: -60px; 
-            height: calc(100% + 400px); 
+        .progress-bar {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #00f2fe, #4facfe);
+            box-shadow: 0 0 10px #00f2fe;
+            transition: width 0.1s linear;
+        }
+
+        /* 取消按钮 */
+        .cancel-btn {
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #94a3b8;
+            padding: 8px 24px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .cancel-btn:hover {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: #ef4444;
+            color: #ef4444;
         }
     </style>
 </head>
@@ -206,19 +208,19 @@
 </div>
 
 <div id="matrixModal" class="modal-overlay">
-    <div class="modal-content">
-        <div class="modal-header">
-            <button id="closeModalBtn" class="close-btn" title="关闭窗口">&times;</button>
+    <div class="gateway-content">
+        <div class="terminal-header">Establishing Link</div>
+        <div id="terminalStatus" class="terminal-status">初始化矩阵跃迁协议...</div>
+        <div class="progress-track">
+            <div id="progressBar" class="progress-bar"></div>
         </div>
-        <div class="iframe-clipper">
-            <iframe src="https://www.ncm2mp3.com/" class="embedded-frame" title="DaoDao 转换终端"></iframe>
-        </div>
+        <button id="cancelBtn" class="cancel-btn">中止链路 (ABORT)</button>
     </div>
 </div>
 
 <script>
     (function(){
-        // ---------- 1. 科技黑底色 + 动态随机粒子变色 ----------
+        // ---------- 1. 科技黑底色 + 动态粒子 ----------
         let vantaEffect = null;
         const techColors = [
             { c1: 0x00f2fe, c2: 0x4facfe }, 
@@ -240,7 +242,7 @@
                     scaleMobile: 1.00,
                     color: techColors[0].c1,
                     color2: techColors[0].c2,
-                    backgroundColor: 0x060913, // 固定深蓝黑底色
+                    backgroundColor: 0x060913,
                     size: 2.80, 
                     spacing: 32.00
                 });
@@ -248,10 +250,7 @@
                 setInterval(() => {
                     if (vantaEffect && vantaEffect.setOptions) {
                         const randomPair = techColors[Math.floor(Math.random() * techColors.length)];
-                        vantaEffect.setOptions({
-                            color: randomPair.c1,
-                            color2: randomPair.c2
-                        });
+                        vantaEffect.setOptions({ color: randomPair.c1, color2: randomPair.c2 });
                     }
                 }, 4000);
             } catch(e) {
@@ -264,25 +263,71 @@
             window.addEventListener('resize', () => { if(vantaEffect) vantaEffect.resize(); });
         });
 
-        // ---------- 2. 弹窗交互控制 ----------
+        // ---------- 2. 网关跃迁交互逻辑 ----------
         const openBtn = document.getElementById('openMatrixBtn');
-        const closeModalBtn = document.getElementById('closeModalBtn');
         const modal = document.getElementById('matrixModal');
+        const cancelBtn = document.getElementById('cancelBtn');
+        const statusText = document.getElementById('terminalStatus');
+        const progressBar = document.getElementById('progressBar');
 
-        openBtn.addEventListener('click', () => {
-            // 触发炫酷的点击反馈后，直接在新标签页开启目标终端
-            window.open('https://www.ncm2mp3.com/', '_blank');
-        });
+        let jumpTimer = null;
+        let progressInterval = null;
 
-        closeModalBtn.addEventListener('click', () => {
+        // 模拟黑客帝国式的连接状态文字
+        const statusMessages = [
+            "正在解算前端防御策略...",
+            "绕过本地安全沙盒...",
+            "连接到 NCM 音频转换子核心...",
+            "握手成功，准备注入环境..."
+        ];
+
+        function startJumpSequence() {
+            let progress = 0;
+            let msgIndex = 0;
+            
+            progressBar.style.width = '0%';
+            statusText.innerText = statusMessages[0];
+            modal.classList.add('active');
+
+            // 文字轮播动画
+            const textInterval = setInterval(() => {
+                msgIndex++;
+                if(msgIndex < statusMessages.length) {
+                    statusText.innerText = statusMessages[msgIndex];
+                }
+            }, 500); // 每0.5秒换一次字
+
+            // 进度条动画 (总计 1.8 秒左右)
+            progressInterval = setInterval(() => {
+                progress += Math.random() * 5 + 2; 
+                if (progress >= 100) progress = 100;
+                progressBar.style.width = `${progress}%`;
+            }, 100);
+
+            // 跃迁执行！在当前窗口无缝覆盖跳转
+            jumpTimer = setTimeout(() => {
+                clearInterval(textInterval);
+                clearInterval(progressInterval);
+                statusText.innerText = "进入转换终端...";
+                // 重点：使用 window.location.href 替换原网页，而不是弹新标签页
+                window.location.href = 'https://www.ncm2mp3.com/';
+            }, 1800);
+        }
+
+        function abortJump() {
+            clearTimeout(jumpTimer);
+            clearInterval(progressInterval);
             modal.classList.remove('active');
-        });
+            setTimeout(() => {
+                progressBar.style.width = '0%';
+                statusText.innerText = '链路已中止';
+            }, 400);
+        }
 
-        modal.addEventListener('click', (e) => {
-            if (e.target === modal) {
-                modal.classList.remove('active');
-            }
-        });
+        // 绑定事件
+        openBtn.addEventListener('click', startJumpSequence);
+        cancelBtn.addEventListener('click', abortJump);
+
     })();
 </script>
 </body>
