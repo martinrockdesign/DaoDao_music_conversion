@@ -3,17 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DaoDao 音频转换矩阵</title>
+    <title>DaoDao ncm 转 mp3</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/vanta@0.5.24/dist/vanta.dots.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
     <style>
         :root {
             --bg-color: #060913;
-            --border-light: rgba(255, 255, 255, 0.12);
-            --accent-glow: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
+            --accent-color: #00f2fe;
             --text-main: #f1f5f9;
-            --text-muted: #94a3b8;
         }
 
         * {
@@ -32,6 +29,7 @@
             -webkit-font-smoothing: antialiased;
         }
 
+        /* 动态背景容器 */
         #vanta-bg {
             position: fixed;
             top: 0;
@@ -39,222 +37,160 @@
             width: 100%;
             height: 100%;
             z-index: 0;
+            pointer-events: none;
         }
 
+        /* 主舞台居中 */
         .main-container {
             position: relative;
             z-index: 10;
             display: flex;
             justify-content: center;
             align-items: center;
-            min-height: 100vh;
-            padding: 2rem;
-            pointer-events: none;
+            height: 100vh;
+            width: 100vw;
         }
 
-        /* ✨ 完美优化的 70% 透明度科技面板：微调底色并降低模糊度，使背后的动态粒子图案清晰可见 */
-        .card {
-            pointer-events: auto;
-            width: 100%;
-            max-width: 480px;
-            background: rgba(15, 23, 42, 0.70); 
-            backdrop-filter: blur(8px);
-            -webkit-backdrop-filter: blur(8px);
-            border-radius: 24px;
-            padding: 2.5rem 2rem;
-            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6), inset 0 1px 0px rgba(255, 255, 255, 0.15);
-            border: 1px solid var(--border-light);
-            transition: all 0.4s ease;
+        /* 核心发光圆形按钮 */
+        .core-button {
+            width: 240px;
+            height: 240px;
+            border-radius: 50%;
+            background: rgba(10, 15, 30, 0.65);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 2px solid rgba(0, 242, 254, 0.4);
+            box-shadow: 0 0 35px rgba(0, 242, 254, 0.35), inset 0 0 20px rgba(0, 242, 254, 0.15);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            gap: 8px;
+            outline: none;
         }
 
-        .brand {
-            text-align: center;
-            margin-bottom: 2rem;
+        .core-button:hover {
+            transform: scale(1.08);
+            border-color: rgba(0, 242, 254, 0.8);
+            box-shadow: 0 0 60px rgba(0, 242, 254, 0.6), inset 0 0 30px rgba(0, 242, 254, 0.3);
         }
         
-        .logo-area {
-            font-size: 1.8rem;
-            font-weight: 300;
-            letter-spacing: 4px;
-            background: linear-gradient(180deg, #ffffff 0%, #cbd5e1 100%);
+        .core-button:active {
+            transform: scale(0.95);
+        }
+
+        .btn-text-large {
+            font-size: 2.4rem;
+            font-weight: 800;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            background: linear-gradient(135deg, #ffffff 0%, #00f2fe 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-            margin-bottom: 0.4rem;
+            text-shadow: 0 2px 10px rgba(0, 242, 254, 0.2);
         }
 
-        .app-sub {
-            font-size: 0.75rem;
-            text-transform: uppercase;
-            letter-spacing: 2px;
-            color: var(--text-muted);
+        .btn-text-small {
+            font-size: 0.95rem;
+            font-weight: 500;
+            color: #94a3b8;
+            letter-spacing: 1px;
         }
 
-        .drop-zone {
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px dashed rgba(255, 255, 255, 0.15);
-            border-radius: 16px;
-            padding: 2.5rem 1rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.25, 1, 0.5, 1);
-            margin-bottom: 1.5rem;
-        }
-
-        .drop-zone:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: #00f2fe;
-            box-shadow: 0 0 15px rgba(0, 242, 254, 0.15);
-        }
-
-        .drop-zone.drag-over {
-            background: rgba(0, 242, 254, 0.05);
-            border-color: #00f2fe;
-        }
-
-        .upload-text {
-            font-size: 0.9rem;
-            font-weight: 400;
-            color: var(--text-main);
-            letter-spacing: 0.5px;
-        }
-
-        .upload-hint {
-            font-size: 0.75rem;
-            color: var(--text-muted);
-            margin-top: 6px;
-        }
-
-        .hidden-input {
-            display: none;
-        }
-
-        .files-list {
-            max-height: 160px;
-            overflow-y: auto;
-            margin-bottom: 1.5rem;
-            border-radius: 12px;
-            padding: 0.2rem;
-        }
-
-        .file-item {
+        /* --- 弹窗/模态框遮罩 --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            z-index: 1000;
             display: flex;
+            justify-content: center;
             align-items: center;
-            justify-content: space-between;
-            background: rgba(255, 255, 255, 0.04);
-            margin: 0.5rem 0;
-            padding: 0.6rem 1rem;
-            border-radius: 10px;
-            font-size: 0.8rem;
-            border: 1px solid rgba(255, 255, 255, 0.02);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.4s ease;
         }
 
-        .file-name {
-            flex: 1;
-            white-space: nowrap;
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        /* 弹窗容器 */
+        .modal-content {
+            position: relative;
+            width: 90%;
+            max-width: 1000px;
+            height: 80vh;
+            background: rgba(15, 23, 42, 0.9);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);
             overflow: hidden;
-            text-overflow: ellipsis;
-            color: #e2e8f0;
-            padding-right: 10px;
+            transform: translateY(30px) scale(0.95);
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: flex;
+            flex-direction: column;
         }
 
-        .file-size {
-            font-size: 0.7rem;
-            color: var(--text-muted);
+        .modal-overlay.active .modal-content {
+            transform: translateY(0) scale(1);
         }
 
-        .remove-btn {
+        /* 弹窗控制栏 */
+        .modal-header {
+            display: flex;
+            justify-content: flex-end;
+            align-items: center;
+            padding: 12px 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+            z-index: 10;
+        }
+
+        .close-btn {
             background: none;
             border: none;
+            color: #94a3b8;
+            font-size: 1.8rem;
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        .close-btn:hover {
             color: #ef4444;
-            cursor: pointer;
-            font-size: 0.9rem;
-            margin-left: 0.8rem;
-            opacity: 0.6;
-            transition: opacity 0.2s;
         }
-        .remove-btn:hover { opacity: 1; }
 
-        .convert-btn {
+        /* ✂️ 核心新增：遮罩裁剪外壳 ✂️ */
+        .iframe-clipper {
+            flex: 1;
             width: 100%;
-            background: var(--accent-glow);
+            position: relative;
+            overflow: hidden; /* 核心：强行裁剪掉容器外的多余网页内容 */
+            background: #ffffff; /* 防止下方原网页穿透变色 */
+        }
+
+        /* 📡 核心修正：内嵌网页定位拉伸 📡 */
+        .embedded-frame {
+            position: absolute;
+            width: 100%;
             border: none;
-            padding: 1rem;
-            border-radius: 14px;
-            font-size: 0.9rem;
-            font-weight: 600;
-            color: #020617;
-            letter-spacing: 1px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            box-shadow: 0 4px 20px rgba(0, 242, 254, 0.2);
-        }
-
-        .convert-btn:hover:not(:disabled) {
-            transform: translateY(-1px);
-            box-shadow: 0 6px 25px rgba(0, 242, 254, 0.4);
-        }
-
-        .convert-btn:disabled {
-            background: rgba(255, 255, 255, 0.08);
-            color: rgba(255, 255, 255, 0.3);
-            box-shadow: none;
-            cursor: not-allowed;
-        }
-
-        .progress-area {
-            margin: 1.2rem 0;
-        }
-        .progress-bar-bg {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 10px;
-            height: 3px;
-            overflow: hidden;
-        }
-        .progress-fill {
-            width: 0%;
-            height: 100%;
-            background: linear-gradient(90deg, #00f2fe, #4facfe);
-            transition: width 0.2s ease;
-        }
-
-        .result-area {
-            margin-top: 1.2rem;
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 0.5rem;
-        }
-        .download-link {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: rgba(0, 242, 254, 0.08);
-            border: 1px solid rgba(0, 242, 254, 0.2);
-            padding: 0.75rem 1rem;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            color: #00f2fe;
-            text-decoration: none;
-            transition: all 0.2s ease;
-        }
-        .download-link:hover {
-            background: rgba(0, 242, 254, 0.15);
-            border-color: #00f2fe;
-        }
-
-        .footer-status {
-            margin-top: 1.5rem;
-            font-size: 0.75rem;
-            text-align: center;
-            color: var(--text-muted);
-            letter-spacing: 0.5px;
-        }
-        .error-msg { color: #f87171; }
-
-        .files-list::-webkit-scrollbar { width: 4px; }
-        .files-list::-webkit-scrollbar-track { background: transparent; }
-        .files-list::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
+            
+            /* -----------------------------------------------------------------
+               💡 极客调教指南：
+               1. top: -95px; 代表把外部网页往上提 95 像素（以此遮住它的顶部导航栏）。
+               2. height: calc(100% + 140px); 把高撑大，配合底部溢出裁剪，遮住底部。
+               如果发现遮挡不准，微调这两个数字即可！
+               ----------------------------------------------------------------- */
+            top: -60px; 
+            height: calc(100% + 400px); 
         }
     </style>
 </head>
@@ -263,37 +199,26 @@
 <div id="vanta-bg"></div>
 
 <div class="main-container">
-    <div class="card">
-        <div class="brand">
-            <div class="logo-area">DAODAO</div>
-            <div class="app-sub">Audio Matrix Converter</div>
+    <button id="openMatrixBtn" class="core-button">
+        <span class="btn-text-large">Convert</span>
+        <span class="btn-text-small">.ncm to .mp3</span>
+    </button>
+</div>
+
+<div id="matrixModal" class="modal-overlay">
+    <div class="modal-content">
+        <div class="modal-header">
+            <button id="closeModalBtn" class="close-btn" title="关闭窗口">&times;</button>
         </div>
-
-        <div id="dropZone" class="drop-zone">
-            <div class="upload-text">将音频资产拖至此处或点击浏览</div>
-            <div class="upload-hint">支持 NCM · KGM · OGG 本地重组</div>
-            <input type="file" id="fileInput" multiple accept=".ogg,.kgm,.ncm" class="hidden-input" />
-        </div>
-
-        <div id="fileListContainer" class="files-list" style="display: none;"></div>
-
-        <button id="convertBtn" class="convert-btn" disabled>开始解析转换</button>
-
-        <div id="progressWrapper" class="progress-area" style="display: none;">
-            <div class="progress-bar-bg"><div id="progressFill" class="progress-fill"></div></div>
-        </div>
-
-        <div id="resultArea" class="result-area" style="display: none;"></div>
-
-        <div id="bottomStatus" class="footer-status">
-            <span id="statusText">内核就绪 · 动态安全隔离保护中</span>
+        <div class="iframe-clipper">
+            <iframe src="https://www.ncm2mp3.com/" class="embedded-frame" title="DaoDao 转换终端"></iframe>
         </div>
     </div>
 </div>
 
 <script>
     (function(){
-        // ---------- 1. 纯净科技黑底色 + 动态随机变色粒子 ----------
+        // ---------- 1. 科技黑底色 + 动态随机粒子变色 ----------
         let vantaEffect = null;
         const techColors = [
             { c1: 0x00f2fe, c2: 0x4facfe }, 
@@ -315,8 +240,8 @@
                     scaleMobile: 1.00,
                     color: techColors[0].c1,
                     color2: techColors[0].c2,
-                    backgroundColor: 0x060913, // 严格保持纯黑蓝科技底座不变
-                    size: 2.80,  // 略微调大粒子尺寸，透光效果更饱满
+                    backgroundColor: 0x060913, // 固定深蓝黑底色
+                    size: 2.80, 
                     spacing: 32.00
                 });
                 
@@ -339,307 +264,24 @@
             window.addEventListener('resize', () => { if(vantaEffect) vantaEffect.resize(); });
         });
 
-        // ---------- 2. 完备还原的动态音频解密 + 转换引擎 ----------
-        const dropZone = document.getElementById('dropZone');
-        const fileInput = document.getElementById('fileInput');
-        const fileListContainer = document.getElementById('fileListContainer');
-        const convertBtn = document.getElementById('convertBtn');
-        const progressWrapper = document.getElementById('progressWrapper');
-        const progressFill = document.getElementById('progressFill');
-        const resultArea = document.getElementById('resultArea');
-        const statusSpan = document.getElementById('statusText');
+        // ---------- 2. 弹窗交互控制 ----------
+        const openBtn = document.getElementById('openMatrixBtn');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const modal = document.getElementById('matrixModal');
 
-        let pendingFiles = [];
-        let ffmpeg = null;
-        let ffmpegReady = false;
-
-        function formatSize(bytes) {
-            if(bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-        }
-
-        function renderFileList() {
-            if(pendingFiles.length === 0) {
-                fileListContainer.style.display = 'none';
-                convertBtn.disabled = true;
-                return;
-            }
-            fileListContainer.style.display = 'block';
-            let html = '';
-            pendingFiles.forEach((file, idx) => {
-                const ext = file.name.split('.').pop().toUpperCase();
-                html += `
-                    <div class="file-item">
-                        <span class="file-name" title="${file.name}">${file.name}</span>
-                        <span class="file-size">${formatSize(file.size)} · ${ext}</span>
-                        <button class="remove-btn" data-index="${idx}">✕</button>
-                    </div>
-                `;
-            });
-            fileListContainer.innerHTML = html;
-            document.querySelectorAll('.remove-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const idx = parseInt(btn.getAttribute('data-index'));
-                    if(!isNaN(idx)) {
-                        pendingFiles.splice(idx, 1);
-                        renderFileList();
-                        if(pendingFiles.length === 0) {
-                            resultArea.style.display = 'none';
-                            resultArea.innerHTML = '';
-                        }
-                    }
-                });
-            });
-            convertBtn.disabled = false;
-        }
-
-        function addFiles(files) {
-            let added = 0;
-            for(let f of files) {
-                const ext = f.name.split('.').pop().toLowerCase();
-                if(['ogg','kgm','ncm'].includes(ext)) {
-                    if(!pendingFiles.some(ex => ex.name === f.name && ex.size === f.size)) {
-                        pendingFiles.push(f);
-                        added++;
-                    }
-                }
-            }
-            if(added) {
-                renderFileList();
-                resultArea.style.display = 'none';
-                setStatusText(`已载入扩展资产 (${added})`);
-            }
-        }
-
-        function setStatusText(msg, isError = false) {
-            statusSpan.innerHTML = isError ? `<span class="error-msg">${msg}</span>` : msg;
-        }
-
-        async function initFFmpeg() {
-            if(ffmpegReady && ffmpeg) return ffmpeg;
-            if(window._ffLoading) {
-                while(!ffmpegReady && window._ffLoading) await new Promise(r => setTimeout(r, 100));
-                return ffmpeg;
-            }
-            window._ffLoading = true;
-            progressWrapper.style.display = 'block';
-            setStatusText('正在初始化解码内核矩阵...');
-            
-            try {
-                if (typeof FFmpeg === 'undefined') {
-                    throw new Error('CDN 静态网络资产分发异常，请刷新重试');
-                }
-                const { createFFmpeg } = FFmpeg;
-                ffmpeg = createFFmpeg({
-                    log: true,
-                    corePath: 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-                });
-                
-                await ffmpeg.load();
-                ffmpegReady = true;
-                progressWrapper.style.display = 'none';
-                window._ffLoading = false;
-                return ffmpeg;
-            } catch(err) {
-                window._ffLoading = false;
-                progressWrapper.style.display = 'none';
-                throw err;
-            }
-        }
-
-        async function ensureCryptoJS() {
-            if(window.CryptoJS) return;
-            return new Promise((resolve, reject) => {
-                const script = document.createElement('script');
-                script.src = "https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js";
-                script.onload = resolve;
-                script.onerror = () => reject(new Error('核心解密算法分发挂起'));
-                document.head.appendChild(script);
-            });
-        }
-
-        function rc4Crypt(data, keyBytes) {
-            let s = [...Array(256).keys()];
-            let j = 0;
-            for(let i=0;i<256;i++) {
-                j = (j + s[i] + keyBytes[i % keyBytes.length]) & 0xff;
-                [s[i], s[j]] = [s[j], s[i]];
-            }
-            let i=0, j2=0;
-            const res = new Uint8Array(data.length);
-            for(let idx=0; idx<data.length; idx++) {
-                i = (i+1) & 0xff;
-                j2 = (j2 + s[i]) & 0xff;
-                [s[i], s[j2]] = [s[j2], s[i]];
-                res[idx] = data[idx] ^ s[(s[i] + s[j2]) & 0xff];
-            }
-            return res;
-        }
-
-        // 🛠️ 完美还原并对接回你原本完整的 NCM 动态逆推算法
-        async function decryptNCM(buffer) {
-            await ensureCryptoJS();
-            const view = new DataView(buffer);
-            let magic = '';
-            for(let i=0;i<8;i++) magic += String.fromCharCode(view.getUint8(i));
-            if(magic !== 'CTENCDNT') throw new Error('非合法NCM容器包');
-            let offset = 10;
-            
-            const metaSize = view.getUint32(offset, true); offset += 4;
-            const encMeta = new Uint8Array(buffer, offset, metaSize); offset += metaSize;
-            offset += 4;
-            const imgSize = view.getUint32(offset, true); offset += 4;
-            if(imgSize > 0) offset += imgSize;
-            const encAudio = new Uint8Array(buffer, offset);
-            
-            const aesKey = CryptoJS.enc.Utf8.parse('neteasecloudmusic09');
-            const encBase64 = CryptoJS.enc.Base64.stringify(CryptoJS.lib.WordArray.create(encMeta));
-            let decMeta;
-            try {
-                const dec = CryptoJS.AES.decrypt(encBase64, aesKey, { mode: CryptoJS.mode.ECB, padding: CryptoJS.pad.Pkcs7 });
-                decMeta = dec.toString(CryptoJS.enc.Utf8);
-            } catch(e) { throw new Error('元数据解密失败'); }
-            
-            const metaJson = JSON.parse(decMeta);
-            const keyData = metaJson.key;
-            if(!keyData) throw new Error('未检索到有效分发密钥');
-            
-            const rc4Raw = CryptoJS.enc.Base64.parse(keyData);
-            const keyBytes = new Uint8Array(rc4Raw.words.length * 4);
-            for(let i=0; i<rc4Raw.words.length; i++) {
-                const w = rc4Raw.words[i];
-                keyBytes[i*4] = (w>>>24)&0xff;
-                keyBytes[i*4+1] = (w>>>16)&0xff;
-                keyBytes[i*4+2] = (w>>>8)&0xff;
-                keyBytes[i*4+3] = w&0xff;
-            }
-            
-            let decAudio = rc4Crypt(encAudio, keyBytes);
-            for(let i=0; i<Math.min(64, decAudio.length-4); i++) {
-                if((decAudio[i]===0x49 && decAudio[i+1]===0x44 && decAudio[i+2]===0x33) ||
-                   (decAudio[i]===0x4F && decAudio[i+1]===0x67) ||
-                   (decAudio[i]===0x66 && decAudio[i+1]===0x4C)) {
-                    return decAudio.slice(i).buffer;
-                }
-            }
-            return decAudio.buffer;
-        }
-
-        // 🛠️ 完美还原并对接回你原本完整的 KGM 经典高斯逆推遮罩
-        async function decryptKGM(buffer) {
-            const data = new Uint8Array(buffer);
-            const tryMask = (mask) => {
-                const out = new Uint8Array(data.length);
-                for(let i=0; i<data.length; i++) out[i] = data[i] ^ mask;
-                return out;
-            };
-            let dec = tryMask(0x7d);
-            if((dec[0]===0x4F && dec[1]===0x67) || (dec[0]===0x49 && dec[1]===0x44)) return dec.buffer;
-            dec = tryMask(0x7c);
-            if((dec[0]===0x4F && dec[1]===0x67) || (dec[0]===0x49 && dec[1]===0x44)) return dec.buffer;
-            return tryMask(0x7d).buffer;
-        }
-
-        async function convertOne(file, ff, progressCb) {
-            const ext = file.name.split('.').pop().toLowerCase();
-            let rawBuffer;
-            const baseName = file.name.replace(/\.(ogg|kgm|ncm)$/i,'');
-            const fileBuf = await file.arrayBuffer();
-            
-            if(ext === 'ogg') rawBuffer = fileBuf;
-            else if(ext === 'ncm') rawBuffer = await decryptNCM(fileBuf);
-            else rawBuffer = await decryptKGM(fileBuf);
-            
-            progressCb(0.3);
-            const inFile = `in_${Date.now()}.bin`;
-            const outFile = `${baseName}.mp3`;
-            
-            ff.FS('writeFile', inFile, new Uint8Array(rawBuffer));
-            await ff.run('-i', inFile, '-acodec', 'libmp3lame', '-ab', '320k', '-ar', '44100', '-y', outFile);
-            progressCb(0.85);
-            
-            const outData = ff.FS('readFile', outFile);
-            ff.FS('unlink', inFile);
-            ff.FS('unlink', outFile);
-            return { blob: new Blob([outData], { type: 'audio/mpeg' }), filename: outFile };
-        }
-
-        async function startConversion() {
-            if(pendingFiles.length === 0) return;
-            
-            if (!window.crossOriginIsolated) {
-                setStatusText('⚠️ 跨源安全隔离未激活。请确认留有 vercel.json 配置文件，并尝试通过 Ctrl+F5 强制刷新页面。', true);
-                return;
-            }
-
-            try {
-                await initFFmpeg();
-            } catch(e) {
-                setStatusText(`❌ 引擎故障: ${e.message || e}`, true);
-                return;
-            }
-            
-            convertBtn.disabled = true;
-            progressWrapper.style.display = 'block';
-            resultArea.style.display = 'none';
-            resultArea.innerHTML = '';
-            
-            const total = pendingFiles.length;
-            let successList = [];
-
-            for(let i=0; i<total; i++) {
-                const file = pendingFiles[i];
-                setStatusText(`重组音频链路 (${i+1}/${total}): ${file.name}`);
-                try {
-                    const res = await convertOne(file, ffmpeg, (p) => {
-                        const percent = ((i + p) / total) * 100;
-                        progressFill.style.width = `${Math.min(percent, 99)}%`;
-                    });
-                    successList.push(res);
-                } catch(err) {
-                    console.error(err);
-                }
-            }
-            
-            progressFill.style.width = '100%';
-            setTimeout(() => { progressWrapper.style.display = 'none'; }, 500);
-
-            if(successList.length) {
-                setStatusText(`矩阵转换完成 · 成功重组 ${successList.length} 项音频资产`);
-                resultArea.style.display = 'grid';
-                for(const r of successList) {
-                    const url = URL.createObjectURL(r.blob);
-                    const a = document.createElement('a');
-                    a.className = 'download-link';
-                    a.href = url;
-                    a.download = r.filename;
-                    a.innerHTML = `<span>${r.filename}</span><span style="font-size:0.7rem; font-weight:bold; letter-spacing:1px;">DOWNLOAD</span>`;
-                    resultArea.appendChild(a);
-                }
-                pendingFiles = [];
-            } else {
-                setStatusText('当前音频流密钥不匹配，无解密输出', true);
-            }
-            convertBtn.disabled = false;
-        }
-
-        // 交互节点绑定
-        dropZone.addEventListener('click', () => fileInput.click());
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-        dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-            if(e.dataTransfer.files.length) addFiles(Array.from(e.dataTransfer.files));
+        openBtn.addEventListener('click', () => {
+            modal.classList.add('active');
         });
-        fileInput.addEventListener('change', (e) => {
-            if(e.target.files.length) addFiles(Array.from(e.target.files));
-            fileInput.value = '';
+
+        closeModalBtn.addEventListener('click', () => {
+            modal.classList.remove('active');
         });
-        convertBtn.addEventListener('click', startConversion);
+
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                modal.classList.remove('active');
+            }
+        });
     })();
 </script>
 </body>
